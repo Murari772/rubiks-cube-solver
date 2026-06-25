@@ -1,0 +1,3 @@
+/Users/murarimarupu/rubiks-cube-solver/build/CMakeFiles/RubiksCubeSolver.dir
+/Users/murarimarupu/rubiks-cube-solver/build/CMakeFiles/edit_cache.dir
+/Users/murarimarupu/rubiks-cube-solver/build/CMakeFiles/rebuild_cache.dir
