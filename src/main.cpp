@@ -1,10 +1,10 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <chrono> 
-#include "../include/RubiksCube3dArray.h"
-#include "../include/Solver.h"
+#include <chrono>
 #include "../include/RubiksCubeBitboard.h"
+#include "../include/pattern_databases/CornerPatternDatabase.h"
+#include "../include/Solver.h"
 
 std::vector<RubiksCube::MOVE> generateScramble(int numMoves) {
     std::vector<RubiksCube::MOVE> scramble;
@@ -12,82 +12,101 @@ std::vector<RubiksCube::MOVE> generateScramble(int numMoves) {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> faceDist(0, 5); 
     std::uniform_int_distribution<> turnDist(0, 2); 
-
-    auto areOpposite = [](int face1, int face2) {
-        if (face1 == 0 && face2 == 5) return true;
-        if (face1 == 5 && face2 == 0) return true;
-        if (face1 == 1 && face2 == 3) return true;
-        if (face1 == 3 && face2 == 1) return true;
-        if (face1 == 2 && face2 == 4) return true;
-        if (face1 == 4 && face2 == 2) return true;
+    
+    int lastFace = -1;
+    int secondLastFace = -1;
+    
+    auto areOpposite = [](int f1, int f2) {
+        if (f1 == 0 && f2 == 5) return true;
+        if (f1 == 5 && f2 == 0) return true;
+        if (f1 == 1 && f2 == 3) return true;
+        if (f1 == 3 && f2 == 1) return true;
+        if (f1 == 2 && f2 == 4) return true;
+        if (f1 == 4 && f2 == 2) return true;
         return false;
     };
 
-    while (scramble.size() < numMoves) {
+    for (int i = 0; i < numMoves; ++i) {
         int currentFace = faceDist(gen);
-
-        if (!scramble.empty()) {
-            int lastFace = static_cast<int>(scramble.back()) / 3;
+        
+        while (true) {
+            bool valid = true;
             
-            // Rule 1: Same Face
-            if (currentFace == lastFace) continue;
+            if (currentFace == lastFace) valid = false;
             
-            // Rule 2: Opposite Order
-            if (areOpposite(currentFace, lastFace) && currentFace < lastFace) continue;
-            
-            // Rule 3: Sandwich Pruning
-            if (scramble.size() >= 2) {
-                int secondLastFace = static_cast<int>(scramble[scramble.size() - 2]) / 3;
-                if (currentFace == secondLastFace && areOpposite(currentFace, lastFace)) continue;
+            if (lastFace != -1 && areOpposite(currentFace, lastFace) && currentFace < lastFace) {
+                valid = false;
             }
+            
+            if (secondLastFace != -1 && currentFace == secondLastFace && areOpposite(currentFace, lastFace)) {
+                valid = false;
+            }
+
+            if (valid) break;
+            currentFace = faceDist(gen);
         }
         
+        secondLastFace = lastFace;
+        lastFace = currentFace;
+        
         int turnType = turnDist(gen);
-        int moveValue = (currentFace * 3) + turnType;
-        scramble.push_back(static_cast<RubiksCube::MOVE>(moveValue));
+        scramble.push_back(static_cast<RubiksCube::MOVE>((currentFace * 3) + turnType));
     }
     return scramble;
 }
 
-int main() {
-    //RubiksCube3dArray cube;
+int main(int argc, char** argv) {
+    std::string algorithm = "idastar";
+    int scrambleLength = 13;
+
+    if (argc > 1) {
+        algorithm = argv[1];
+    }
+    if (argc > 2) {
+        scrambleLength = std::stoi(argv[2]);
+    }
+
+    std::cout << "Initializing Engine...\n";
     RubiksCubeBitboard cube;
-    
-    int scrambleLength = 8; 
-    int maxSearchDepth = 10; 
+    CornerPatternDatabase cornerDB;
+
+    if (algorithm == "idastar") {
+        if (!cornerDB.loadDatabase("corner_db.bin")) {
+            std::cout << "CRITICAL ERROR: Could not load corner_db.bin. Did you run the generator?\n";
+            return 1;
+        }
+    }
     
     std::vector<RubiksCube::MOVE> scrambleSequence = generateScramble(scrambleLength);
-    
-    std::cout << "Scrambling with " << scrambleLength << " moves: ";
+    std::cout << "\nScrambling with " << scrambleLength << " moves: ";
     for (auto move : scrambleSequence) {
         std::cout << RubiksCube::getMoveString(move) << " ";
         cube.move(move);
     }
-    std::cout << "\n\nStarting IDDFS Solver...\n";
+    std::cout << "\n\n";
 
     auto start = std::chrono::high_resolution_clock::now();
-
-    std::vector<RubiksCube::MOVE> solution = Solver::solveIDDFS(cube, maxSearchDepth);
-
+    
+    std::vector<RubiksCube::MOVE> solution;
+    if (algorithm == "iddfs") {
+        solution = Solver::solveIDDFS(cube, 20);
+    } else {
+        solution = Solver::solveIDAStar(cube, cornerDB, 20);
+    }
+    
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    std::cout << "\n=== RESULTS ===\n";
+    std::cout << "\n=== FINAL RESULTS ===\n";
+    std::cout << "Algorithm used: " << algorithm << "\n";
     if (!solution.empty()) {
         std::cout << "Solution Path: ";
-
         for (auto move : solution) {
             std::cout << RubiksCube::getMoveString(move) << " ";
         }
-
         std::cout << "\nSolution Length: " << solution.size() << " moves\n";
-    } 
-    else {
-        std::cout << "Failed to find a solution within " << maxSearchDepth << " moves.\n";
     }
-    
     std::cout << "Time Taken: " << duration.count() << " ms (" << duration.count() / 1000.0 << " seconds)\n";
-    std::cout << "===============\n";
 
     return 0;
 }
