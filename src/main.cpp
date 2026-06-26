@@ -4,6 +4,7 @@
 #include <chrono>
 #include "../include/RubiksCubeBitboard.h"
 #include "../include/pattern_databases/CornerPatternDatabase.h"
+#include "../include/pattern_databases/EdgePatternDatabase.h"
 #include "../include/Solver.h"
 
 std::vector<RubiksCube::MOVE> generateScramble(int numMoves) {
@@ -69,10 +70,14 @@ int main(int argc, char** argv) {
     std::cout << "Initializing Engine...\n";
     RubiksCubeBitboard cube;
     CornerPatternDatabase cornerDB;
+    EdgePatternDatabase edgeDB1(0);
+    EdgePatternDatabase edgeDB2(6);
 
     if (algorithm == "idastar") {
-        if (!cornerDB.loadDatabase("corner_db.bin")) {
-            std::cout << "CRITICAL ERROR: Could not load corner_db.bin. Did you run the generator?\n";
+        if (!cornerDB.loadDatabase("corner_db.bin") ||
+            !edgeDB1.loadDatabase("edge_db_1.bin") ||
+            !edgeDB2.loadDatabase("edge_db_2.bin")) {
+            std::cout << "CRITICAL ERROR: Could not load pattern databases. Did you run the generator?\n";
             return 1;
         }
     }
@@ -91,7 +96,7 @@ int main(int argc, char** argv) {
     if (algorithm == "iddfs") {
         solution = Solver::solveIDDFS(cube, 20);
     } else {
-        solution = Solver::solveIDAStar(cube, cornerDB, 20);
+        solution = Solver::solveIDAStar(cube, cornerDB, edgeDB1, edgeDB2, 20);
     }
     
     auto end = std::chrono::high_resolution_clock::now();

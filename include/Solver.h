@@ -23,12 +23,16 @@ private:
     template <typename T>
     static bool dfsIDA(T& cube, int currentDepth, int maxDepth, 
                        int lastFace, int secondLastFace, 
-                       PatternDatabase& cornerDB, std::vector<RubiksCube::MOVE>& path) {
+                       PatternDatabase& cornerDB, PatternDatabase& edgeDB1, PatternDatabase& edgeDB2, std::vector<RubiksCube::MOVE>& path) {
         
         // --- THE IDA* CRYSTAL BALL ---
-        // If the moves we've made + the minimum moves required for the corners
-        // exceeds our depth limit, this branch is physically impossible to solve. Kill it.
-        if (currentDepth + cornerDB.getNumMoves(cube) > maxDepth) {
+        // We take the MAXIMUM required moves among our three pattern databases.
+        uint8_t hCorners = cornerDB.getNumMoves(cube);
+        uint8_t hEdges1 = edgeDB1.getNumMoves(cube);
+        uint8_t hEdges2 = edgeDB2.getNumMoves(cube);
+        uint8_t h = std::max({hCorners, hEdges1, hEdges2});
+
+        if (currentDepth + h > maxDepth) {
             return false;
         }
 
@@ -49,7 +53,7 @@ private:
 
             cube.move(currentMove);
 
-            if (dfsIDA(cube, currentDepth + 1, maxDepth, currentFace, lastFace, cornerDB, path)) {
+            if (dfsIDA(cube, currentDepth + 1, maxDepth, currentFace, lastFace, cornerDB, edgeDB1, edgeDB2, path)) {
                 path.insert(path.begin(), currentMove);
                 return true; 
             }
@@ -111,17 +115,20 @@ public:
         return path;
     }
     template <typename T>
-    static std::vector<RubiksCube::MOVE> solveIDAStar(T& cube, PatternDatabase& cornerDB, int absoluteMaxDepth = 20) {
+    static std::vector<RubiksCube::MOVE> solveIDAStar(T& cube, PatternDatabase& cornerDB, PatternDatabase& edgeDB1, PatternDatabase& edgeDB2, int absoluteMaxDepth = 20) {
         std::vector<RubiksCube::MOVE> path;
         
-        // OPTIMIZATION: Start the search at the exact minimum depth the corners require!
-        int initialDepth = cornerDB.getNumMoves(cube);
-        std::cout << "Corners require a minimum of " << initialDepth << " moves. Starting search there...\n";
+        // OPTIMIZATION: Start the search at the exact minimum depth the heuristics require!
+        uint8_t hCorners = cornerDB.getNumMoves(cube);
+        uint8_t hEdges1 = edgeDB1.getNumMoves(cube);
+        uint8_t hEdges2 = edgeDB2.getNumMoves(cube);
+        int initialDepth = std::max({hCorners, hEdges1, hEdges2});
+        std::cout << "Heuristics require a minimum of " << initialDepth << " moves. Starting search there...\n";
 
         for (int depth = initialDepth; depth <= absoluteMaxDepth; depth++) {
             std::cout << "Searching depth " << depth << "...\n";
             
-            if (dfsIDA(cube, 0, depth, -1, -1, cornerDB, path)) {
+            if (dfsIDA(cube, 0, depth, -1, -1, cornerDB, edgeDB1, edgeDB2, path)) {
                 std::cout << "Solution found at depth " << depth << "!\n";
                 return path;
             }
