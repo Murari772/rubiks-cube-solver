@@ -6,11 +6,9 @@
 
 A high-performance Rubik's Cube solver written in C++17. This project implements an optimal solver using the Iterative Deepening A* (IDA*) algorithm coupled with Pattern Database (PDB) heuristics. It is capable of finding the shortest possible solution for any scrambled Rubik's Cube in approximately 1 second.
 
-![Hero Image Placeholder](docs/images/hero_image_placeholder.png) <!-- Placeholder for a nice hero image, UI screenshot, or GIF of the solver running -->
-
 ## Features
 
-* **Optimal Solutions:** Guarantees finding the absolute shortest sequence of moves to solve the cube (God's Number is 20).
+* **Optimal Solutions:** Guarantees finding the absolute shortest sequence of moves to solve the cube.
 * **High Performance:** Solves random scrambles optimally in roughly 1 second utilizing heavily optimized C++.
 * **Advanced Heuristics:** Employs Pattern Databases (PDBs) covering over 170 million indexed states to dramatically prune the search space.
 * **Efficient State Indexing:** Uses Lehmer coding and permutation ranking for extremely fast, $O(1)$ lookups in the heuristic databases.
